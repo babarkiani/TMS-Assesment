@@ -1,0 +1,237 @@
+﻿@{
+    ViewData["Title"] = "Maintenance Page";
+}
+<style>
+
+</style>
+<div class="container my-4">
+    <h2 class="mb-4 text-center">Maintenance Activities</h2>
+
+    <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" onclick="showAddModal()">
+    Add New Maintenance Activity
+</button>
+    <div class="table-responsive">
+        <table id="dataTable" class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Maintenance Type</th>
+                    <th>Maintenance Date</th>
+                    <th>Description</th>
+                    <th>Notes</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <hr>
+
+<div class="modal fade" id="addMaintenanceModal" tabindex="-1" aria-labelledby="addMaintenanceModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMaintenanceModalLabel">New Maintenance Activity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addMaintenanceForm" class="needs-validation" novalidate>
+                    <input type="hidden" id="Maintenance_Id" name="Maintenance_Id" />
+                    <div class="mb-3">
+                        <label class="form-label">Select Vehicle</label>
+                        <select class="form-select" id="Vehicle_Id" name="Vehicle_Id" required>
+                            <option value="">[Select Option]</option>
+                                @foreach (var vehicle in ViewBag.Vehicles)
+                                {
+                                    <option value="@vehicle.Vehicle_Id">@vehicle.Vehicle_Name - @vehicle.Vehicle_Number</option>
+                                }
+                        </select>
+                        <div class="invalid-feedback">Please select a vehicle.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Maintenance Type</label>
+                        <select class="form-select" id="Maintenance_Type" name="Maintenance_Type" required>
+                            <option value="">[Select Option]</option>
+                                @foreach (var maintenanceType in ViewBag.MaintenanceTypes)
+                                {
+                                    <option value="@maintenanceType.Maintenance_Type">@maintenanceType.Maintenance_Type</option>
+                                }
+                        </select>
+                        <div class="invalid-feedback">Please select the maintenance type.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Maintenance Date</label>
+                        <input type="date" class="form-control" id="Maintenance_Date" name="Maintenance_Date" required>
+                        <div class="invalid-feedback">Please select a valid date.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="Maintenance_Description" name="Maintenance_Description" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="Notes" rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Maintenance</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+
+<script>
+
+   document.addEventListener("DOMContentLoaded", function () {
+
+        // console.log("test")
+        // $('#Maintenance_Type').select2({
+        //     placeholder: "[Select Option]",
+        //     allowClear: true
+        // });
+
+        // $('#Vehicle_Id').select2({
+        //     placeholder: "[Select Option]",
+        //     allowClear: true
+        // });
+
+$('#dataTable').DataTable({
+    ajax: {
+        url: '/Maintenance/GetMaintenanceActivities',
+        dataSrc: 'data',
+        error: function (xhr, error, thrown) {
+            console.error('Error loading data: ', error);
+        },
+        success: function (data) {
+            // console.log('Response data:', data);
+            $('#dataTable').DataTable().clear().rows.add(data.data).draw();
+        }
+    },
+    columns: [
+        { data: 'vehicleName' },
+        { data: 'maintenance_Type' },
+        {
+            data: 'maintenance_Date',
+            render: function (data) {
+                return new Date(data).toLocaleDateString();
+            }
+        },
+        { data: 'maintenance_Description' },
+        { data: 'notes' },
+        {
+            data: 'maintenance_Id',
+            render: function (data) {
+                return `<button class="btn-primary" onclick="showUpdateModal(${data})">Edit</button>
+                        <button class="btn-danger" onclick="deleteMaintenance(${data})">Delete</button>`;
+            }
+        }
+    ]
+});
+var validation = false;
+const form = document.getElementById('addMaintenanceForm');
+form.addEventListener('submit', function (event) {
+    if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    else{
+        validation = true;
+    }
+    form.classList.add('was-validated');
+});
+
+
+$('#addMaintenanceForm').on('submit', function (e) {
+    if(validation){
+        var id = $('#Maintenance_Id').val();
+        var url = '/Maintenance/AddOrEditMaintenanceActivity';
+
+        $.ajax({
+        url: url,
+        type: 'POST',
+        data: $(this).serialize(),
+        success: function (response) {
+            if (response.success) {
+                alert(response.message);
+                $('#dataTable').DataTable().ajax.reload();
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function (xhr, status, error) {
+                
+            alert("An error occurred: " + xhr.responseText);
+        }
+    });
+    }
+
+});
+
+
+
+});
+
+
+function deleteMaintenance(id) {
+    if (confirm("Are you sure you want to delete this maintenance record?")) {
+        $.ajax({
+            url: '/Maintenance/DeleteMaintenanceActivity',
+            type: 'POST',
+            data: { id: id },
+            success: function (response) {
+                if (response.success) {
+                    alert(response.message);
+                    $('#dataTable').DataTable().ajax.reload();
+                } else {
+                    alert("Error: " + response.message);
+                }
+            },
+            error: function (xhr, error, thrown) {
+                console.error('Error deleting maintenance record: ', error);
+                alert("An error occurred while trying to delete the maintenance record.");
+            }
+        });
+    }
+}
+
+function showAddModal() {
+    $('#Maintenance_Id').val('');
+    $('#Vehicle_Id').val('');
+    $('#Maintenance_Type').val('');
+    $('#Maintenance_Date').val('');
+    $('#Maintenance_Description').val('');
+    $('#notes').val('');
+    $('#addMaintenanceModalLabel').text('New Maintenance Activity');
+    $('#addMaintenanceModal').modal('show');
+}
+
+function showUpdateModal(id) {
+    $.ajax({
+        url: '/Maintenance/GetMaintenanceActivity/' + id,
+        type: 'GET',
+        success: function(activity) {
+            $('#Maintenance_Id').val(activity.maintenance_Id);
+            $('#Vehicle_Id').val(activity.vehicle_Id);
+            $('#Maintenance_Type').val(activity.maintenance_Type);
+            $('#Maintenance_Date').val(activity.maintenance_Date.split('T')[0]);
+            $('#Maintenance_Description').val(activity.maintenance_Description);
+            $('#notes').val(activity.notes);
+            $('#addMaintenanceModalLabel').text('Update Maintenance Activity'); 
+            $('#addMaintenanceModal').modal('show');
+        },
+        error: function() {
+            alert('Failed to get maintenance activity.');
+        }
+    });
+
+}
+
+
+</script>
